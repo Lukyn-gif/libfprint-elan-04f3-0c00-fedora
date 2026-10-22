@@ -1,0 +1,15 @@
+# Local source checkouts and build output
+/work/
+/build/
+/dist/
+*.rpm
+
+# Local diagnostics and temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# Python caches, if local tooling creates them
+__pycache__/
+*.pyc

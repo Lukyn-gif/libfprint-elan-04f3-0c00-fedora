@@ -1,0 +1,16 @@
+--- a/libfprint/drivers/elanmoc2/elanmoc2.c
++++ b/libfprint/drivers/elanmoc2/elanmoc2.c
+@@ -637,8 +637,12 @@
+             fp_info ("Identify failed: %s", error->message);
+             if (can_retry)
+               {
++                /* A retry report finishes this verify/identify action. The
++                 * caller may start a new action for another scan; reporting
++                 * again in this action violates libfprint's contract. */
+                 elanmoc2_identify_verify_report (device, NULL, &error);
+-                fpi_ssm_jump_to_state (ssm, IDENTIFY_IDENTIFY);
++                elanmoc2_identify_verify_complete (device, NULL);
++                fpi_ssm_mark_completed (g_steal_pointer (&self->ssm));
+               }
+             else
+               {

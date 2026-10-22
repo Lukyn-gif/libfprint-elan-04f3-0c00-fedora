@@ -1,0 +1,71 @@
+diff --git a/libfprint/drivers/elanmoc2/elanmoc2.c b/libfprint/drivers/elanmoc2/elanmoc2.c
+index bec6aeb..1a112fa 100644
+--- a/libfprint/drivers/elanmoc2/elanmoc2.c
++++ b/libfprint/drivers/elanmoc2/elanmoc2.c
+@@ -891,19 +891,22 @@ elanmoc2_enroll_run_state (FpiSsm *ssm, FpDevice *device)
+       }
+ 
+     case ENROLL_ENROLL: {
++        const Elanmoc2Cmd *enroll_cmd =
++          (self->dev_type & ELANMOC2_DEV_0C00) ? &cmd_enroll_0c00 : &cmd_enroll;
+         g_autoptr(GByteArray) buffer_out = elanmoc2_prepare_cmd (self,
+-                                                                 &cmd_enroll);
++                                                                 enroll_cmd);
+         if (buffer_out == NULL)
+           {
+             fpi_ssm_next_state (ssm);
+             break;
+           }
+-        g_assert (buffer_out->len >= 7);
++        g_assert (buffer_out->len >= 6);
+         buffer_out->data[3] = self->enrolled_num;
+         buffer_out->data[4] = ELANMOC2_ENROLL_TIMES;
+         buffer_out->data[5] = self->enroll_stage;
+-        buffer_out->data[6] = 0;
+-        elanmoc2_cmd_transceive (device, &cmd_enroll, buffer_out);
++        if (buffer_out->len > 6)
++          buffer_out->data[6] = 0;
++        elanmoc2_cmd_transceive (device, enroll_cmd, buffer_out);
+         fp_info ("Enroll command sent: %d/%d", self->enroll_stage,
+                  ELANMOC2_ENROLL_TIMES);
+         fpi_device_report_finger_status (device, FP_FINGER_STATUS_NEEDED);
+@@ -1157,7 +1160,7 @@ fpi_device_elanmoc2_init (FpiDeviceElanMoC2 *self)
+ }
+ 
+ static const FpIdEntry elanmoc2_id_table[] = {
+-  {.vid = ELANMOC2_VEND_ID, .pid = 0x0c00, .driver_data = ELANMOC2_ALL_DEV},
++  {.vid = ELANMOC2_VEND_ID, .pid = 0x0c00, .driver_data = ELANMOC2_DEV_0C00},
+   {.vid = ELANMOC2_VEND_ID, .pid = 0x0c4c, .driver_data = ELANMOC2_ALL_DEV},
+   {.vid = ELANMOC2_VEND_ID, .pid = 0x0c5e, .driver_data = ELANMOC2_DEV_0C5E},
+   {.vid = ELANMOC2_VEND_ID, .pid = 0x0c7c, .driver_data = ELANMOC2_ALL_DEV},
+diff --git a/libfprint/drivers/elanmoc2/elanmoc2.h b/libfprint/drivers/elanmoc2/elanmoc2.h
+index 2a99089..7283eae 100644
+--- a/libfprint/drivers/elanmoc2/elanmoc2.h
++++ b/libfprint/drivers/elanmoc2/elanmoc2.h
+@@ -62,6 +62,7 @@
+ // Currently only one device is supported, but I'd like to future-proof this driver for any new contributions.
+ #define ELANMOC2_ALL_DEV 0
+ #define ELANMOC2_DEV_0C5E (1 << 0)
++#define ELANMOC2_DEV_0C00 (1 << 1)
+ 
+ // Subtract the 2-byte header
+ #define ELANMOC2_USER_ID_MAX_LEN (cmd_finger_info.in_len - 2)
+@@ -100,6 +101,17 @@ static const Elanmoc2Cmd cmd_enroll = {
+   .is_cancellable = TRUE,
+ };
+ 
++/* Firmware used by 04f3:0c00 rejects the trailing reserved byte accepted by
++ * the older 0c4c protocol. */
++static const Elanmoc2Cmd cmd_enroll_0c00 = {
++  .cmd = {0xff, 0x01},
++  .out_len = 6,
++  .in_len = 2,
++  .ep_in = ELANMOC2_EP_MOC_CMD_IN,
++  .devices = ELANMOC2_DEV_0C00,
++  .is_cancellable = TRUE,
++};
++
+ 
+ // Not cancellable / quick commands
+ 
+
