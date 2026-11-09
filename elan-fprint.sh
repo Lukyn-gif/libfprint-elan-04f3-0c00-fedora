@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fedora 44, ELAN 04f3:0c00 bcdDevice 2.81 only.
+# Fedora 44 (and Nobara 44, which is Fedora-based), ELAN 04f3:0c00
+# bcdDevice 2.81 only.
 # Build a pinned libfprint elanmoc2 fork and load it only in fprintd.
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,8 +24,8 @@ usage() {
 
 check_hardware() {
   source /etc/os-release
-  [[ "$ID" == fedora && "$VERSION_ID" == 44 ]] || {
-    echo 'This procedure was prepared for Fedora 44 only.' >&2
+  [[ ( "$ID" == fedora || "$ID" == nobara ) && "$VERSION_ID" == 44 ]] || {
+    echo 'This procedure was prepared for Fedora 44 and Nobara 44 only.' >&2
     exit 1
   }
   local dev vendor product revision found=no
@@ -96,9 +97,16 @@ build_library() {
 
   if ! rpm -q --quiet git gcc meson ninja-build pkgconf-pkg-config \
       glib2-devel libgusb-devel; then
-    echo 'Installing build dependencies (Fedora repositories only)...'
-    sudo dnf --disablerepo='*' --enablerepo=fedora \
-      --enablerepo=updates install -y \
+    local -a dnf_repos=()
+    source /etc/os-release
+    if [[ "$ID" == fedora ]]; then
+      echo 'Installing build dependencies (Fedora repositories only)...'
+      dnf_repos=(--disablerepo='*' --enablerepo=fedora --enablerepo=updates)
+    else
+      # Nobara uses its own repository ids, so keep the configured ones.
+      echo 'Installing build dependencies (configured repositories)...'
+    fi
+    sudo dnf "${dnf_repos[@]}" install -y \
       git gcc meson ninja-build pkgconf-pkg-config \
       glib2-devel libgusb-devel
   fi
